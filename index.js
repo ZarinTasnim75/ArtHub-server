@@ -61,13 +61,26 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/artworks", async (req, res) => {
-      const artwork = req.body;
+   app.post("/artworks", async (req, res) => {
 
-      const result = await artworksCollection.insertOne(artwork);
+    const artwork = req.body;
 
-      res.status(201).send(result);
-    });
+    if (
+        !artwork.title ||
+        !artwork.artistEmail ||
+        !artwork.artistName ||
+        !artwork.image
+    ) {
+        return res.status(400).send({
+            message: "Missing required fields"
+        });
+    }
+
+    const result =
+        await artworksCollection.insertOne(artwork);
+
+    res.status(201).send(result);
+});
 
     app.put("/artworks/:id", async (req, res) => {
       const id = req.params.id;
