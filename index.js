@@ -37,7 +37,74 @@ async function run() {
         const salesCollection = db.collection("sales");
         const usersCollection = db.collection("users");
 
- 
+        app.get("/artworks", async (req, res) => {
+            const result = await artworksCollection.find().toArray();
+            res.send(result);
+        });
+
+        app.get("/artworks/:id", async (req, res) => {
+            const id = req.params.id;
+
+            const result =
+                await artworksCollection.findOne({
+                    _id: new ObjectId(id),
+                });
+
+            res.send(result);
+        });
+
+        app.get("/artist-artworks/:email", async (req, res) => {
+            const email = req.params.email;
+
+            const result =
+                await artworksCollection
+                    .find({
+                        artistEmail: email,
+                    })
+                    .toArray();
+
+            res.send(result);
+        });
+
+        app.post("/artworks", async (req, res) => {
+            const artwork = req.body;
+
+            const result =
+                await artworksCollection.insertOne(
+                    artwork
+                );
+
+            res.status(201).send(result);
+        });
+
+        app.put("/artworks/:id", async (req, res) => {
+            const id = req.params.id;
+
+            const updatedData = req.body;
+
+            const result =
+                await artworksCollection.updateOne(
+                    {
+                        _id: new ObjectId(id),
+                    },
+                    {
+                        $set: updatedData,
+                    }
+                );
+
+            res.send(result);
+        });
+
+        app.delete("/artworks/:id", async (req, res) => {
+            const id = req.params.id;
+
+            const result =
+                await artworksCollection.deleteOne({
+                    _id: new ObjectId(id),
+                });
+
+            res.send(result);
+        });
 
 
 
