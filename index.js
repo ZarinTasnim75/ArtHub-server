@@ -205,8 +205,8 @@ async function run() {
 
       res.send(artists);
     });
-    
-app.post("/create-checkout-session", async (req, res) => {
+
+    app.post("/create-checkout-session", async (req, res) => {
       try {
         const { plan } = req.body;
 
@@ -252,7 +252,39 @@ app.post("/create-checkout-session", async (req, res) => {
         res.status(500).send(err.message);
       }
     });
+    app.get("/users", async (req, res) => {
+      const email = req.query.email;
 
+      const user = await usersCollection.findOne({ email });
+
+      res.send(user);
+    });
+
+    app.patch("/users/subscription", async (req, res) => {
+      const { email, plan, maxPurchases } = req.body;
+
+      const result = await usersCollection.updateOne(
+        { email },
+        {
+          $set: {
+            plan,
+            maxPurchases,
+          },
+        },
+      );
+
+      res.send(result);
+    });
+
+    app.get("/purchased-artworks", async (req, res) => {
+      const email = req.query.email;
+
+      const result = await salesCollection
+        .find({ buyerEmail: email })
+        .toArray();
+
+      res.send(result);
+    });
 
     console.log("MongoDB Connected");
   } catch (error) {
