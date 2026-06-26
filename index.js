@@ -34,9 +34,16 @@ async function run() {
     const usersCollection = db1.collection("user");
 
     app.get("/artworks", async (req, res) => {
-      const result = await artworksCollection.find().toArray();
-      res.send(result);
-    });
+
+  const { category } = req.query;
+
+  const query = category ? { category } : {};
+
+  const artworks = await artworksCollection.find(query).sort({ createdAt: -1 }).toArray();
+
+  res.send(artworks);
+
+});
 
     app.get("/artworks/:id", async (req, res) => {
       const id = req.params.id;
