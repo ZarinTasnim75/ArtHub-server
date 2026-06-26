@@ -152,6 +152,20 @@ async function run() {
       res.send(artworks);
     });
 
+    app.get("/featured-artworks", async (req, res) => {
+
+    const result = await artworksCollection
+        .find()
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .toArray();
+
+    res.send(result);
+
+});
+
+
+
     console.log("MongoDB Connected");
   } catch (error) {
     console.log(error);
