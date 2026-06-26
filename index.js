@@ -33,7 +33,6 @@ async function run() {
     const salesCollection = db2.collection("sales");
     const usersCollection = db1.collection("user");
 
-
     app.get("/artworks", async (req, res) => {
       const result = await artworksCollection.find().toArray();
       res.send(result);
@@ -61,26 +60,24 @@ async function run() {
       res.send(result);
     });
 
-   app.post("/artworks", async (req, res) => {
+    app.post("/artworks", async (req, res) => {
+      const artwork = req.body;
 
-    const artwork = req.body;
-
-    if (
+      if (
         !artwork.title ||
         !artwork.artistEmail ||
         !artwork.artistName ||
         !artwork.image
-    ) {
+      ) {
         return res.status(400).send({
-            message: "Missing required fields"
+          message: "Missing required fields",
         });
-    }
+      }
 
-    const result =
-        await artworksCollection.insertOne(artwork);
+      const result = await artworksCollection.insertOne(artwork);
 
-    res.status(201).send(result);
-});
+      res.status(201).send(result);
+    });
 
     app.put("/artworks/:id", async (req, res) => {
       const id = req.params.id;
@@ -143,6 +140,17 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/my-artworks", async (req, res) => {
+      const email = req.query.email;
+
+      const query = {
+        artistEmail: email,
+      };
+
+      const artworks = await artworksCollection.find(query).toArray();
+
+      res.send(artworks);
+    });
 
     console.log("MongoDB Connected");
   } catch (error) {
