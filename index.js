@@ -205,6 +205,54 @@ async function run() {
 
       res.send(artists);
     });
+    
+app.post("/create-checkout-session", async (req, res) => {
+      try {
+        const { plan } = req.body;
+
+        let priceId;
+        let maxPurchases;
+
+        if (plan === "Pro") {
+          priceId = process.env.STRIPE_PRO_PRICE_ID;
+          maxPurchases = 9;
+        } else if (plan === "Premium") {
+          priceId = process.env.STRIPE_PREMIUM_PRICE_ID;
+          maxPurchases = -1;
+        } else {
+          return res.status(400).send({ error: "Invalid plan" });
+        }
+        console.log(plan);
+        console.log(maxPurchases);
+        const session = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          line_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+
+          metadata: {
+            plan,
+            maxPurchases,
+          },
+
+          success_url:
+            "http://localhost:3000/dashboard/user/subscription/success?session_id={CHECKOUT_SESSION_ID}",
+
+          cancel_url: "http://localhost:3000/dashboard/user/subscription",
+        });
+
+        res.send({
+          url: session.url,
+        });
+      } catch (err) {
+        console.log(err);
+        res.status(500).send(err.message);
+      }
+    });
+
 
     console.log("MongoDB Connected");
   } catch (error) {
