@@ -1,11 +1,14 @@
 const express = require("express");
-const app = express();
+
 const port = 5000;
 const cors = require("cors");
 require("dotenv").config();
 
 const { MongoClient, ObjectId, ServerApiVersion } = require("mongodb");
+const Stripe = require("stripe");
 
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -34,16 +37,17 @@ async function run() {
     const usersCollection = db1.collection("user");
 
     app.get("/artworks", async (req, res) => {
+      const { category } = req.query;
 
-  const { category } = req.query;
+      const query = category ? { category } : {};
 
-  const query = category ? { category } : {};
+      const artworks = await artworksCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
 
-  const artworks = await artworksCollection.find(query).sort({ createdAt: -1 }).toArray();
-
-  res.send(artworks);
-
-});
+      res.send(artworks);
+    });
 
     app.get("/artworks/:id", async (req, res) => {
       const id = req.params.id;
@@ -160,18 +164,47 @@ async function run() {
     });
 
     app.get("/featured-artworks", async (req, res) => {
-
-    const result = await artworksCollection
+      const result = await artworksCollection
         .find()
         .sort({ createdAt: -1 })
         .limit(6)
         .toArray();
 
-    res.send(result);
+      res.send(result);
+    });
 
-});
+    app.get("/top-artists", async (req, res) => {
+      const artists = await artworksCollection
+        .aggregate([
+          {
+            $group: {
+              _id: "$artistEmail",
+              artistName: {
+                $first: "$artistName",
+              },
+              avatar: {
+                $first: "$artistImage",
+              },
+              totalArtworks: {
+                $sum: 1,
+              },
+            },
+          },
 
+          {
+            $sort: {
+              totalArtworks: -1,
+            },
+          },
 
+          {
+            $limit: 3,
+          },
+        ])
+        .toArray();
+
+      res.send(artists);
+    });
 
     console.log("MongoDB Connected");
   } catch (error) {
