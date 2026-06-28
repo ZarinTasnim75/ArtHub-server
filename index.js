@@ -1,5 +1,4 @@
 const express = require("express");
-
 const port = 5000;
 const cors = require("cors");
 require("dotenv").config();
@@ -118,7 +117,7 @@ async function run() {
     });
 
     app.patch("/profile", async (req, res) => {
-      const { email, name } = req.body;
+      const { email, name, artistImage } = req.body;
 
       console.log("Updating:", email);
 
@@ -134,18 +133,35 @@ async function run() {
           modifiedCount: 0,
         });
       }
+      const updateData = {
+        name,
+      };
 
+      if (artistImage) {
+        updateData.artistImage = artistImage;
+      }
       const result = await usersCollection.updateOne(
         {
           email: email,
         },
         {
-          $set: {
-            name: name,
-          },
+          $set: updateData,
         },
       );
+      if (artistImage) {
+        console.log("Updating artworks for:", email);
 
+        const artworkResult = await artworksCollection.updateMany(
+          { artistEmail: email },
+          {
+            $set: {
+              artistImage,
+            },
+          },
+        );
+
+        console.log(artworkResult);
+      }
       console.log(result);
 
       res.send(result);
@@ -202,7 +218,6 @@ async function run() {
           },
         ])
         .toArray();
-
       res.send(artists);
     });
 
@@ -222,8 +237,6 @@ async function run() {
         } else {
           return res.status(400).send({ error: "Invalid plan" });
         }
-        console.log(plan);
-        console.log(maxPurchases);
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
           line_items: [
@@ -248,16 +261,32 @@ async function run() {
           url: session.url,
         });
       } catch (err) {
-        console.log(err);
+
         res.status(500).send(err.message);
       }
     });
+
     app.get("/users", async (req, res) => {
-      const email = req.query.email;
+      try {
+        const email = req.query.email;
 
-      const user = await usersCollection.findOne({ email });
+        if (!email) {
+          return res
+            .status(400)
+            .send({ message: "Email query param is required" });
+        }
 
-      res.send(user);
+        const user = await usersCollection.findOne({ email });
+
+        if (!user) {
+          return res.status(404).send({ message: "User not found" });
+        }
+
+        res.send(user);
+      } catch (error) {
+        console.error("GET /users error:", error);
+        res.status(500).send({ message: "Failed to fetch user" });
+      }
     });
 
     app.patch("/users/subscription", async (req, res) => {
@@ -276,7 +305,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/purchased-artworks", async (req, res) => {
+    app.get("/purchases", async (req, res) => {
       const email = req.query.email;
 
       const result = await salesCollection
