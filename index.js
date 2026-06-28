@@ -5,11 +5,29 @@ require("dotenv").config();
 
 const { MongoClient, ObjectId, ServerApiVersion } = require("mongodb");
 const Stripe = require("stripe");
-
+   const jwt = require("jsonwebtoken");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+  const verifyToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.status(401).send({ message: "Unauthorized access" });
+    }
+
+    const token = authHeader.split(" ")[1]; 
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).send({ message: "Unauthorized access" });
+      }
+      req.decoded = decoded; 
+      next();
+    });
+  };
 
 app.get("/", (req, res) => {
   res.send("ArtHub Server Running");
@@ -70,7 +88,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/artworks", async (req, res) => {
+    app.post("/artworks", verifyToken, async (req, res) => {
       const artwork = req.body;
 
       if (
@@ -167,15 +185,16 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/my-artworks", async (req, res) => {
+    app.get("/my-artworks", verifyToken, async (req, res) => {
       const email = req.query.email;
 
-      const query = {
-        artistEmail: email,
-      };
+      if (req.decoded.email !== email) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
 
-      const artworks = await artworksCollection.find(query).toArray();
-
+      const artworks = await artworksCollection
+        .find({ artistEmail: email })
+        .toArray();
       res.send(artworks);
     });
 
@@ -252,18 +271,18 @@ async function run() {
           },
 
           success_url:
-            "http://localhost:3000/dashboard/user/subscription/success?session_id={CHECKOUT_SESSION_ID}",
+            `${process.env.CLIENT_URL}/dashboard/user/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
 
-          cancel_url: "http://localhost:3000/dashboard/user/subscription",
+          cancel_url: `${process.env.CLIENT_URL}/dashboard/user/subscription`,
         });
 
         res.send({
           url: session.url,
         });
       } catch (err) {
-
-        res.status(500).send(err.message);
-      }
+  console.error("Stripe Error:", err);
+  res.status(500).send({ error: err.message });
+}
     });
 
     app.get("/users", async (req, res) => {
@@ -313,6 +332,31 @@ async function run() {
         .toArray();
 
       res.send(result);
+    });
+
+    app.post("/jwt", async (req, res) => {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).send({ message: "Email is required" });
+      }
+
+      const user = await usersCollection.findOne({ email });
+
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+
+      const token = jwt.sign(
+        {
+          email: user.email,
+          role: user.role,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" },
+      );
+
+      res.send({ token });
     });
 
     console.log("MongoDB Connected");
